@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin — Section Notice Board</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><h1>🔐 Admin Panel</h1></header>
+<div class="wrap">
+
+  <div id="authBox">
+    <div class="panel">
+      <h2>Admin login</h2>
+      <input id="email" type="email" placeholder="Admin email">
+      <input id="pass" type="password" placeholder="Password">
+      <div class="err" id="err"></div>
+      <button onclick="login()">Log in</button>
+    </div>
+  </div>
+
+  <div id="adminBox" style="display:none">
+    <div class="panel">
+      <h2>Add / update notice</h2>
+      <input type="hidden" id="editId">
+      <div class="row">
+        <div><label>Type</label>
+          <select id="type">
+            <option value="test">Class Test</option>
+            <option value="presentation">Presentation</option>
+            <option value="assignment">Assignment</option>
+            <option value="midterm">Midterm</option>
+            <option value="final">Final Exam</option>
+            <option value="reminder">Reminder</option>
+          </select>
+        </div>
+        <div><label>Course</label><input id="course" placeholder="e.g. CSE216"></div>
+      </div>
+      <label>Title</label>
+      <input id="title" placeholder="e.g. Class Test 2">
+      <label>Date</label>
+      <input id="date" type="date">
+      <div class="row">
+        <div><label>Lecture(s) covered</label><input id="lecture" placeholder="e.g. Lecture 4-6"></div>
+        <div><label>Slide / syllabus ref</label><input id="slide" placeholder="e.g. Slide 12-40"></div>
+      </div>
+      <label>Description / notes</label>
+      <textarea id="description" rows="2"></textarea>
+      <button onclick="saveNotice()">Save notice</button>
+      <button onclick="resetForm()" style="background:#333a5c">Clear</button>
+    </div>
+
+    <div class="panel">
+      <h2>All notices</h2>
+      <div id="list"></div>
+    </div>
+    <button onclick="firebase.auth().signOut()" style="background:#333a5c">Log out</button>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+function login(){
+  const email = document.getElementById('email').value;
+  const pass = document.getElementById('pass').value;
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(e => document.getElementById('err').textContent = e.message);
+}
+
+auth.onAuthStateChanged(user => {
+  const isAdmin = user && ADMIN_EMAILS.includes(user.email);
+  document.getElementById('authBox').style.display = isAdmin ? 'none' : 'block';
+  document.getElementById('adminBox').style.display = isAdmin ? 'block' : 'none';
+  if(user && !isAdmin) auth.signOut();
+  if(isAdmin) loadList();
+});
+
+function resetForm(){
+  ['editId','course','title','lecture','slide','description'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('date').value='';
+  document.getElementById('type').value='test';
+}
+
+function saveNotice(){
+  const data = {
+    type: document.getElementById('type').value,
+    course: document.getElementById('course').value,
+    title: document.getElementById('title').value,
+    date: document.getElementById('date').value,
+    lecture: document.getElementById('lecture').value,
+    slide: document.getElementById('slide').value,
+    description: document.getElementById('description').value,
+  };
+  const id = document.getElementById('editId').value;
+  const ref = id ? db.collection('notices').doc(id) : db.collection('notices').doc();
+  ref.set(data).then(resetForm);
+}
+
+function loadList(){
+  db.collection('notices').orderBy('date').onSnapshot(snap => {
+    document.getElementById('list').innerHTML = snap.docs.map(d => {
+      const n = d.data();
+      return `<div class="item-row">
+        <span>[${n.type}] ${n.title} — ${n.date} ${n.course?('('+n.course+')'):''}</span>
+        <span>
+          <button onclick='editNotice("${d.id}")' style="background:var(--accent)">Edit</button>
+          <button onclick='deleteNotice("${d.id}")'>Delete</button>
+        </span>
+      </div>`;
+    }).join('');
+  });
+}
+
+function editNotice(id){
+  db.collection('notices').doc(id).get().then(doc => {
+    const n = doc.data();
+    document.getElementById('editId').value = id;
+    document.getElementById('type').value = n.type;
+    document.getElementById('course').value = n.course||'';
+    document.getElementById('title').value = n.title||'';
+    document.getElementById('date').value = n.date||'';
+    document.getElementById('lecture').value = n.lecture||'';
+    document.getElementById('slide').value = n.slide||'';
+    document.getElementById('description').value = n.description||'';
+    window.scrollTo(0,0);
+  });
+}
+
+function deleteNotice(id){
+  if(confirm('Delete this notice?')) db.collection('notices').doc(id).delete();
+}
+</script>
+</body>
+</html>
