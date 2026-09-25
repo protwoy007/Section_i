@@ -3,13 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Section Notice Board</title>
+<title>68_I Notice Board</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <header>
-  <h1>📋 Section Notice Board</h1>
-  <p>Tests, presentations, assignments & exams — all in one place</p>
+  <h1>68_I Notice Board</h1>
 </header>
 <div class="wrap">
   <div class="filters">
@@ -26,6 +25,7 @@
   </div>
   <div id="grid" class="grid"><div class="empty">Loading notices...</div></div>
 </div>
+<footer class="site-footer">All rights reserved. Khaled 2026</footer>
 <a class="admin-link" href="admin.html">Admin login →</a>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -38,6 +38,35 @@ const db = firebase.firestore();
 const TYPE_LABEL = {test:"Class Test",presentation:"Presentation",assignment:"Assignment",midterm:"Midterm",final:"Final Exam",reminder:"Reminder"};
 let notices = [];
 
+const THEMES = {
+  oceanEmber:  {bg1:"#08313f", bg2:"#0d3f50", card:"#114a5c", card2:"#17607a", accent:"#ff7452", text:"#f0fbff", muted:"#9fc4d1", test:"#ff5c5c", pres:"#ff9f45", assign:"#38c6d9", exam:"#a06bff", reminder:"#4de0b0"},
+  midnightGold:{bg1:"#12122b", bg2:"#1a1a3d", card:"#1e2049", card2:"#262a5c", accent:"#f4b942", text:"#f5f6ff", muted:"#9a9dc9", test:"#ef476f", pres:"#f4b942", assign:"#4cc9f0", exam:"#b185db", reminder:"#4dd8a0"},
+  emeraldRose: {bg1:"#0b2e28", bg2:"#123a31", card:"#164539", card2:"#1d5446", accent:"#ff6f91", text:"#f2fbf7", muted:"#93bdae", test:"#ff6f91", pres:"#ffb454", assign:"#45c4b0", exam:"#9d6fff", reminder:"#5be7a9"},
+  plumSunset:  {bg1:"#2a1435", bg2:"#331a42", card:"#3a1f4d", card2:"#482760", accent:"#ff8552", text:"#faf3ff", muted:"#c3a8db", test:"#ff5d6c", pres:"#ff8552", assign:"#4dc9ff", exam:"#d16bff", reminder:"#58e0b0"},
+  tealCoral:   {bg1:"#0e3a41", bg2:"#13454d", card:"#134b53", card2:"#1b5d66", accent:"#e2584a", text:"#f3fbfa", muted:"#a9c7c8", test:"#e2584a", pres:"#f2a154", assign:"#4dd0c4", exam:"#c9506d", reminder:"#3ddab0"}
+};
+
+function applyTheme(id){
+  const t = THEMES[id]; if(!t) return;
+  const r = document.documentElement.style;
+  r.setProperty('--bg1',t.bg1); r.setProperty('--bg2',t.bg2);
+  r.setProperty('--card',t.card); r.setProperty('--card2',t.card2);
+  r.setProperty('--accent',t.accent); r.setProperty('--text',t.text);
+  r.setProperty('--muted',t.muted); r.setProperty('--test',t.test);
+  r.setProperty('--pres',t.pres); r.setProperty('--assign',t.assign);
+  r.setProperty('--exam',t.exam); r.setProperty('--reminder',t.reminder);
+}
+
+db.collection('config').doc('theme').onSnapshot(doc => {
+  applyTheme(doc.exists ? doc.data().id : 'oceanEmber');
+});
+
+function fmtDate(iso){
+  if(!iso) return '';
+  const [y,m,d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 function render(){
   const c = document.getElementById('courseFilter').value;
   const t = document.getElementById('typeFilter').value;
@@ -49,14 +78,15 @@ function render(){
       <span class="badge">${TYPE_LABEL[n.type]||n.type}</span>
       <h3>${n.title}</h3>
       <div class="course">${n.course||''}</div>
-      <div class="date">📅 ${n.date}</div>
+      <div class="date">📅 ${fmtDate(n.date)}${n.time?(' · '+n.time):''}</div>
       ${n.lecture||n.slide ? `<div class="detail">${n.lecture?('Lecture: '+n.lecture+'. '):''}${n.slide?('Slide/syllabus: '+n.slide):''}</div>`:''}
       ${n.description ? `<div class="detail">${n.description}</div>`:''}
     </div>`).join('');
 }
 
-db.collection('notices').orderBy('date').onSnapshot(snap => {
+db.collection('notices').onSnapshot(snap => {
   notices = snap.docs.map(d => ({id:d.id, ...d.data()}));
+  notices.sort((a,b) => (a.date+'T'+(a.time||'00:00')).localeCompare(b.date+'T'+(b.time||'00:00')));
   const courses = [...new Set(notices.map(n=>n.course).filter(Boolean))];
   const cf = document.getElementById('courseFilter');
   cf.innerHTML = '<option value="">All courses</option>' + courses.map(c=>`<option value="${c}">${c}</option>`).join('');
