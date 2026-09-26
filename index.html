@@ -11,6 +11,7 @@
 </head>
 <body>
 <header>
+  <img id="bannerImg" class="banner-img" style="display:none" alt="Notice board banner">
   <h1>68_I Notice Board</h1>
 </header>
 <div class="wrap">
@@ -60,9 +61,19 @@ function applyTheme(id){
   r.setProperty('--exam',t.exam); r.setProperty('--reminder',t.reminder);
 }
 
-db.collection('config').doc('theme').onSnapshot(doc => {
-  applyTheme(doc.exists ? doc.data().id : 'deepNavyGold');
-});
+db.collection('config').doc('theme').onSnapshot(
+  doc => applyTheme(doc.exists ? doc.data().id : 'deepNavyGold'),
+  err => console.error('Theme sync failed (check Firestore rules for /config):', err)
+);
+
+db.collection('config').doc('banner').onSnapshot(
+  doc => {
+    const img = document.getElementById('bannerImg');
+    if(doc.exists && doc.data().url){ img.src = doc.data().url; img.style.display='block'; }
+    else { img.style.display='none'; img.src=''; }
+  },
+  err => console.error('Banner sync failed (check Firestore rules for /config):', err)
+);
 
 function fmtDate(iso){
   if(!iso) return '';
@@ -70,31 +81,75 @@ function fmtDate(iso){
   return `${d}/${m}/${y}`;
 }
 
+function targetTime(n){
+  return new Date(`${n.date}T${n.time || '23:59'}:00`).getTime();
+}
+
+function timeLeftLabel(diff){
+  if(diff<=0) return null;
+  const s = Math.floor(diff/1000);
+  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60), sec = s%60;
+  if(d>0) return `⏳ ${d}d ${h}h ${m}m left`;
+  if(h>0) return `⏳ ${h}h ${m}m ${sec}s left`;
+  return `⏳ ${m}m ${sec}s left`;
+}
+
 function render(){
   const c = document.getElementById('courseFilter').value;
   const t = document.getElementById('typeFilter').value;
   const grid = document.getElementById('grid');
-  const filtered = notices.filter(n => (!c || n.course===c) && (!t || n.type===t));
-  if(!filtered.length){ grid.innerHTML = '<div class="empty">No notices yet.</div>'; return; }
-  grid.innerHTML = filtered.map(n => `
-    <div class="card ${n.type}">
+  const now = Date.now();
+  const filtered = notices.filter(n => {
+    const due = targetTime(n);
+    return due > now && (!c || n.course===c) && (!t || n.type===t);
+  });
+  if(!filtered.length){ grid.innerHTML = '<div class="empty">No upcoming notices.</div>'; return; }
+  grid.innerHTML = filtered.map(n => {
+    const due = targetTime(n);
+    const diff = due - now;
+    const urgent = diff < 24*3600*1000 ? ' urgent' : '';
+    return `
+    <div class="card ${n.type}" data-target="${due}">
       <span class="badge">${TYPE_LABEL[n.type]||n.type}</span>
       <h3>${n.title}</h3>
       <div class="course">${n.course||''}</div>
       <div class="date">📅 ${fmtDate(n.date)}${n.time?(' · '+n.time):''}</div>
       ${n.lecture||n.slide ? `<div class="detail">${n.lecture?('Lecture: '+n.lecture+'. '):''}${n.slide?('Slide/syllabus: '+n.slide):''}</div>`:''}
       ${n.description ? `<div class="detail">${n.description}</div>`:''}
-    </div>`).join('');
+      <div class="countdown${urgent}">${timeLeftLabel(diff)||''}</div>
+    </div>`;
+  }).join('');
 }
 
-db.collection('notices').onSnapshot(snap => {
-  notices = snap.docs.map(d => ({id:d.id, ...d.data()}));
-  notices.sort((a,b) => (a.date+'T'+(a.time||'00:00')).localeCompare(b.date+'T'+(b.time||'00:00')));
-  const courses = [...new Set(notices.map(n=>n.course).filter(Boolean))];
-  const cf = document.getElementById('courseFilter');
-  cf.innerHTML = '<option value="">All courses</option>' + courses.map(c=>`<option value="${c}">${c}</option>`).join('');
-  render();
-});
+function tick(){
+  const now = Date.now();
+  let expired = false;
+  document.querySelectorAll('.card[data-target]').forEach(card => {
+    const due = parseInt(card.dataset.target, 10);
+    const diff = due - now;
+    if(diff > 0){
+      const el = card.querySelector('.countdown');
+      if(el){ el.textContent = timeLeftLabel(diff); el.classList.toggle('urgent', diff < 24*3600*1000); }
+    } else {
+      expired = true;
+    }
+  });
+  if(expired) render();
+}
+setInterval(tick, 1000);
+
+db.collection('notices').onSnapshot(
+  snap => {
+    notices = snap.docs.map(d => ({id:d.id, ...d.data()}));
+    notices.sort((a,b) => (a.date+'T'+(a.time||'00:00')).localeCompare(b.date+'T'+(b.time||'00:00')));
+    const now = Date.now();
+    const courses = [...new Set(notices.filter(n=>targetTime(n)>now).map(n=>n.course).filter(Boolean))];
+    const cf = document.getElementById('courseFilter');
+    cf.innerHTML = '<option value="">All courses</option>' + courses.map(c=>`<option value="${c}">${c}</option>`).join('');
+    render();
+  },
+  err => console.error('Notices sync failed:', err)
+);
 document.getElementById('courseFilter').onchange = render;
 document.getElementById('typeFilter').onchange = render;
 </script>
