@@ -31,6 +31,14 @@
     </div>
 
     <div class="panel">
+      <h2>Notice board banner image</h2>
+      <input type="file" id="bannerFile" accept="image/*">
+      <div style="margin:10px 0"><img id="bannerPreview" style="max-width:100%;border-radius:16px;display:none"></div>
+      <button onclick="uploadBanner()">Save banner</button>
+      <button onclick="removeBanner()" style="background:#333a5c">Remove banner</button>
+    </div>
+
+    <div class="panel">
       <h2>Add / update notice</h2>
       <input type="hidden" id="editId">
       <div class="row">
@@ -121,6 +129,50 @@ function buildThemeGrid(){
   ).join('');
 }
 
+function resizeAndEncode(file, maxWidth, cb){
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxWidth / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      cb(canvas.toDataURL('image/jpeg', 0.72));
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function uploadBanner(){
+  const file = document.getElementById('bannerFile').files[0];
+  if(!file) return;
+  resizeAndEncode(file, 900, dataUrl => {
+    db.collection('config').doc('banner').set({url: dataUrl}).then(() => {
+      const p = document.getElementById('bannerPreview');
+      p.src = dataUrl; p.style.display = 'block';
+    }).catch(err => alert('Could not save banner: ' + err.message));
+  });
+}
+
+function removeBanner(){
+  db.collection('config').doc('banner').delete().then(() => {
+    document.getElementById('bannerPreview').style.display = 'none';
+    document.getElementById('bannerFile').value = '';
+  });
+}
+
+function loadBanner(){
+  db.collection('config').doc('banner').get().then(doc => {
+    if(doc.exists && doc.data().url){
+      const p = document.getElementById('bannerPreview');
+      p.src = doc.data().url; p.style.display = 'block';
+    }
+  });
+}
+
 function login(){
   const email = document.getElementById('email').value;
   const pass = document.getElementById('pass').value;
@@ -133,7 +185,7 @@ auth.onAuthStateChanged(user => {
   document.getElementById('authBox').style.display = isAdmin ? 'none' : 'block';
   document.getElementById('adminBox').style.display = isAdmin ? 'block' : 'none';
   if(user && !isAdmin) auth.signOut();
-  if(isAdmin){ loadList(); loadTheme(); }
+  if(isAdmin){ loadList(); loadTheme(); loadBanner(); }
 });
 
 function loadTheme(){
