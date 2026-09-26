@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>68_I Notice Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -25,7 +28,7 @@
   </div>
   <div id="grid" class="grid"><div class="empty">Loading notices...</div></div>
 </div>
-<footer class="site-footer">All rights reserved. Khaled 2026</footer>
+<footer class="site-footer">Khaled 2026</footer>
 <a class="admin-link" href="admin.html">Admin login →</a>
 
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
@@ -39,11 +42,11 @@ const TYPE_LABEL = {test:"Class Test",presentation:"Presentation",assignment:"As
 let notices = [];
 
 const THEMES = {
-  oceanEmber:  {bg1:"#08313f", bg2:"#0d3f50", card:"#114a5c", card2:"#17607a", accent:"#ff7452", text:"#f0fbff", muted:"#9fc4d1", test:"#ff5c5c", pres:"#ff9f45", assign:"#38c6d9", exam:"#a06bff", reminder:"#4de0b0"},
-  midnightGold:{bg1:"#12122b", bg2:"#1a1a3d", card:"#1e2049", card2:"#262a5c", accent:"#f4b942", text:"#f5f6ff", muted:"#9a9dc9", test:"#ef476f", pres:"#f4b942", assign:"#4cc9f0", exam:"#b185db", reminder:"#4dd8a0"},
-  emeraldRose: {bg1:"#0b2e28", bg2:"#123a31", card:"#164539", card2:"#1d5446", accent:"#ff6f91", text:"#f2fbf7", muted:"#93bdae", test:"#ff6f91", pres:"#ffb454", assign:"#45c4b0", exam:"#9d6fff", reminder:"#5be7a9"},
-  plumSunset:  {bg1:"#2a1435", bg2:"#331a42", card:"#3a1f4d", card2:"#482760", accent:"#ff8552", text:"#faf3ff", muted:"#c3a8db", test:"#ff5d6c", pres:"#ff8552", assign:"#4dc9ff", exam:"#d16bff", reminder:"#58e0b0"},
-  tealCoral:   {bg1:"#0e3a41", bg2:"#13454d", card:"#134b53", card2:"#1b5d66", accent:"#e2584a", text:"#f3fbfa", muted:"#a9c7c8", test:"#e2584a", pres:"#f2a154", assign:"#4dd0c4", exam:"#c9506d", reminder:"#3ddab0"}
+  deepNavyGold:{bg1:"#0b1220", bg2:"#111a2e", card:"#16213a", card2:"#1c2a47", accent:"#c9a227", text:"#f4f1e8", muted:"#9aa3b8", test:"#c1666b", pres:"#c9a227", assign:"#4f89c4", exam:"#8b7bb3", reminder:"#5fa88f"},
+  graphiteCyan:{bg1:"#14181d", bg2:"#1b2126", card:"#20272e", card2:"#28313a", accent:"#4fd1c5", text:"#eef2f3", muted:"#9aa7ac", test:"#e0645a", pres:"#e0a458", assign:"#4fd1c5", exam:"#8b8fd6", reminder:"#5fbf8a"},
+  slateIndigo: {bg1:"#141b2e", bg2:"#1b2440", card:"#1f2947", card2:"#28325c", accent:"#6d7fe0", text:"#f1f3fc", muted:"#98a0c3", test:"#e0687a", pres:"#e0a75f", assign:"#6d7fe0", exam:"#a17fd6", reminder:"#5cb894"},
+  charcoalTeal:{bg1:"#101414", bg2:"#161c1c", card:"#1c2323", card2:"#242d2d", accent:"#3fb5a3", text:"#eef4f2", muted:"#93a3a0", test:"#d3665f", pres:"#d6a15b", assign:"#4f9ecf", exam:"#8a83c9", reminder:"#3fb5a3"},
+  warmBurgundy:{bg1:"#1a1614", bg2:"#221c19", card:"#2a2320", card2:"#332b27", accent:"#9c3b4a", text:"#f3ede8", muted:"#b0a49a", test:"#9c3b4a", pres:"#b8863f", assign:"#5a8bab", exam:"#8672a0", reminder:"#5f9c73"}
 };
 
 function applyTheme(id){
@@ -58,7 +61,7 @@ function applyTheme(id){
 }
 
 db.collection('config').doc('theme').onSnapshot(doc => {
-  applyTheme(doc.exists ? doc.data().id : 'oceanEmber');
+  applyTheme(doc.exists ? doc.data().id : 'deepNavyGold');
 });
 
 function fmtDate(iso){
